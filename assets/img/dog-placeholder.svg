@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <!-- cobalt circle token, dachshund placeholder. Swap for real transparent photo cutout. -->
+  <circle cx="60" cy="60" r="58" fill="#240BE2"/>
+  <g fill="none" stroke="#F1E1D5" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- body -->
+    <path d="M30 72 Q42 60 66 62 Q86 64 92 72 Q94 80 86 82 L40 82 Q28 82 30 72 Z"/>
+    <!-- head -->
+    <path d="M84 64 Q98 58 100 70 Q101 80 90 80"/>
+    <!-- ear -->
+    <path d="M86 60 Q80 70 86 78"/>
+    <!-- legs -->
+    <path d="M44 82 L44 94"/><path d="M58 82 L58 94"/>
+    <path d="M74 82 L74 94"/><path d="M86 82 L86 94"/>
+    <!-- tail -->
+    <path d="M30 72 Q22 66 24 58"/>
+  </g>
+  <circle cx="95" cy="69" r="2.6" fill="#F1E1D5"/>
+  <!-- teal collar nod -->
+  <path d="M82 70 Q86 76 90 70" fill="none" stroke="#7B9FE5" stroke-width="4" stroke-linecap="round"/>
+</svg>
