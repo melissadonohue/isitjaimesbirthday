@@ -1,0 +1,8 @@
+# keep the deploy clean — these aren't part of the served site
+.idea
+docs
+reference
+CLAUDE.md
+README.md
+assets/ASSETS.md
+assets/img/_jaime-src.jpg
