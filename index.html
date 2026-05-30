@@ -477,7 +477,8 @@ async function verdict(){
       animate(oui, { translateY:[0,-6], duration:3400, ease:"inOutQuad", loop:true, alternate:true });
     }
     await wait(1900);
-    await toTurn();
+    setBase("verdict");      // the celebration becomes the first back-target
+    goScene("turn");         // advance, pushing a history entry
   } else {
     // cold deadpan path
     $("#verdict-cold").style.display = "block";
@@ -488,7 +489,7 @@ async function verdict(){
     $("#countdown").textContent = `${nextBirthday()} days. the universe is very precise.`;
     animate($("#countdown"), { opacity:[0,.7], duration:600, delay:400, ease:"outQuad" });
     animate($("#peek"), { opacity:[0,.45], duration:600, delay:1100, ease:"outQuad" });
-    $("#peek").addEventListener("click", async () => { await transition("verdict","turn"); toTurnStatic(); });
+    $("#peek").addEventListener("click", () => { goScene("turn", { replace:true }); });
   }
 }
 
@@ -513,12 +514,47 @@ function backspaceTo(el, target){       // anime-driven delete back to a prefix
       onComplete:()=>{ el.textContent = target; res(); } });
   });
 }
-async function toTurn(){
-  await transition("verdict","turn");
+/* ---- history / back-button navigation ----
+   Each user-driven scene is a history entry. Forward taps pushState;
+   the back button fires popstate, which re-renders the target scene in its
+   settled state (instant:true) so we never replay the long celebration. */
+let lastChoice = "tacos";
+function setBase(id){ history.replaceState({ scene:id }, "", "#"+id); }
+function goScene(id, { instant=false, choice=null, replace=false } = {}){
+  const state = { scene:id };
+  if(replace) history.replaceState(state, "", "#"+id);
+  else history.pushState(state, "", "#"+id);
+  renderScene(id, { instant, choice });
+}
+function renderScene(id, { instant=false, choice=null } = {}){
+  if(id === "verdict") return enterVerdictSettled();
+  if(id === "turn")    return enterTurn({ instant });
+  if(id === "invite")  return enterInvite({ instant });
+  if(id === "confirm") return enterConfirm({ instant, choice });
+}
+window.addEventListener("popstate", e => {
+  const id = e.state && e.state.scene;
+  if(!id) return;                      // before our first scene — let the browser leave the site
+  renderScene(id, { instant:true });   // arriving via back/forward → jump straight to settled state
+});
+
+// settled re-entry to the celebration (only used when navigating BACK to it)
+function enterVerdictSettled(){
+  $("#verdict").classList.add("warm");
+  $("#verdict-warm").style.display = "block";
+  $("#verdict-cold").style.display = "none";
+  show("verdict");
+  ["#verdict .oui",".vcircle",".vring",".vcopy"].forEach(s => { const el=$(s); if(el) el.style.opacity = 1; });
+}
+
+// 03 TURN — the machine tries to stay professional and fails
+async function enterTurn({ instant=false } = {}){
+  show("turn");
   const off = $("#turn-official"), st = $("#turn-status"), txt = $("#turn-status-text");
-  if(reduce){
+  off.style.opacity = 0; st.style.opacity = 0; txt.textContent = ""; $("#open-present").style.opacity = 0;
+  if(instant || reduce){
     off.style.opacity = 1; st.style.opacity = 1; txt.textContent = STATUS_B;
-    revealPresent(); return;
+    revealPresent({ instant:true }); return;
   }
   animate(off, { opacity:[0,1], scale:[1.25,1], duration:560, ease:"outExpo" });
   await wait(700);
@@ -528,38 +564,38 @@ async function toTurn(){
   await backspaceTo(txt, "STATUS: ");   // walk it back
   await typeInto(txt, STATUS_B);        // "...that was a lie."
   await wait(450);
-  revealPresent();
+  revealPresent({ instant:false });
 }
-function toTurnStatic(){
-  $("#turn-official").style.opacity = 1;
-  $("#turn-status").style.opacity = 1;
-  $("#turn-status-text").textContent = STATUS_B;
-  revealPresent();
-}
-function revealPresent(){
-  animate($("#open-present"), { opacity:[0,1], translateY:[16,0], duration:600, delay:160, ease:"outExpo",
-    onComplete:()=>{ if(!reduce) animate($("#open-present"),{scale:[1,1.04],duration:1500,ease:"inOutQuad",loop:true,alternate:true}); } });
-  $("#open-present").addEventListener("click", () => invite(), {once:true});
+function onOpenPresent(){ goScene("invite"); }
+function revealPresent({ instant=false } = {}){
+  const btn = $("#open-present");
+  if(instant){ btn.style.opacity = 1; }
+  else animate(btn, { opacity:[0,1], translateY:[16,0], duration:600, delay:160, ease:"outExpo",
+    onComplete:()=>{ if(!reduce) animate(btn,{ scale:[1,1.04], duration:1500, ease:"inOutQuad", loop:true, alternate:true }); } });
+  btn.removeEventListener("click", onOpenPresent);   // idempotent so re-entry doesn't double-bind
+  btn.addEventListener("click", onOpenPresent);
 }
 
 // 04 INVITE + 05 CHOICE
-async function invite(){
-  await transition("turn","invite",{rain:true});
-  if(reduce){
-    [$("#inv-kicker"),$("#inv-head"),...$$(".card")].forEach(el=>el.style.opacity=1);
+async function enterInvite({ instant=false } = {}){
+  const reset = () => $$(".card").forEach(c => c.style.transform = "");
+  if(instant || reduce){
+    show("invite"); reset();
+    [$("#inv-kicker"),$("#inv-head"),...$$(".card")].forEach(el => el.style.opacity = 1);
     wireCards(); return;
   }
+  dogRain(13); await wait(750);
+  show("invite"); reset();
+  $("#inv-kicker").style.opacity = 0; $("#inv-head").style.opacity = 0; $$(".card").forEach(c => c.style.opacity = 0);
   animate($("#inv-kicker"), { opacity:[0,1], duration:500, ease:"outQuad" });
   animate($("#inv-head"), { opacity:[0,1], translateY:[24,0], duration:760, delay:160, ease:"outExpo" });
-  animate($$(".card"), { opacity:[0,1], translateY:[40,0], duration:760, delay:stagger(140,{start:760}), ease:"outExpo",
-    onComplete: wireCards });
+  animate($$(".card"), { opacity:[0,1], translateY:[40,0], duration:760, delay:stagger(140,{start:760}), ease:"outExpo", onComplete:wireCards });
   setTimeout(wireCards, 1800);
 }
-let cardsWired = false;
 function wireCards(){
-  if(cardsWired) return; cardsWired = true;
   $$(".card").forEach(card => {
-    if(!reduce && !isTouch){
+    if(!card._tiltWired && !reduce && !isTouch){      // tilt listeners: attach once
+      card._tiltWired = true;
       card.addEventListener("pointermove", e => {
         const r = card.getBoundingClientRect();
         const px = (e.clientX-r.left)/r.width - .5, py = (e.clientY-r.top)/r.height - .5;
@@ -567,11 +603,13 @@ function wireCards(){
       });
       card.addEventListener("pointerleave", () => card.style.transform = "");
     }
-    card.addEventListener("click", () => {
-      const choice = card.dataset.choice;
+    if(card._clickH) card.removeEventListener("click", card._clickH);  // re-bind cleanly on re-entry
+    card._clickH = () => {
+      const choice = card.dataset.choice; lastChoice = choice;
       if(!reduce) animate(card, { scale:[1,.93,1], duration:300, ease:"outQuad" });
-      confirm(choice);
-    }, {once:true});
+      goScene("confirm", { choice });
+    };
+    card.addEventListener("click", card._clickH);
   });
 }
 
@@ -581,39 +619,40 @@ const COPY = {
     pick:"tacos it is.",
     line:"paper plates, maximum hot sauce, zero pretense.",
     subj:"she's coming over. buy napkins you'll regret.",
-    body:"it worked. jaime made it to the end of the website and tapped the tacos.\n\ntranslation: she wants the version of the evening where nobody's impressing anybody — your place, too much hot sauce, the good kind of mess.\n\nall that's left is for you to name a night. the website has done its part; the rest is you and a grocery list.\n\n(she has no idea this email exists. act surprised when she brings it up.)"
+    body:"it worked. jaime made it to the end of the website and tapped the tacos.\n\ntranslation: she wants the version of the evening where nobody's impressing anybody — your place, too much hot sauce, the good kind of mess.\n\nall that's left is for you to name a night. the website has done its part; the rest is you and a grocery list."
   },
   dinner: {
     pick:"dinner it is.",
     line:"cloth napkins, a real reservation, an actual wine list — wear something nice, i will too.",
     subj:"she picked the cloth-napkin option. don't panic.",
-    body:"it worked. jaime made it to the end of the website and tapped the sophisticated dinner.\n\ntranslation: she's up for the version with a reservation, a wine list, and an outfit that requires forethought. she said she'll dress up — which was, technically, a dare.\n\nall that's left is for you to book somewhere good and meet her there looking like you tried.\n\n(she has no idea this email exists. act surprised when she brings it up.)"
+    body:"it worked. jaime made it to the end of the website and tapped the sophisticated dinner.\n\ntranslation: she's up for the version with a reservation, a wine list, and an outfit that requires forethought. she said she'll dress up — which was, technically, a dare.\n\nall that's left is for you to book somewhere good and meet her there looking like you tried."
   }
 };
-async function confirm(choice){
-  await transition("invite","confirm",{rain:true});
+async function enterConfirm({ instant=false, choice=null } = {}){
+  choice = choice || lastChoice; lastChoice = choice;
   const c = COPY[choice] || COPY.tacos;
-  $("#pick").textContent = c.pick;
-  $("#pickline").textContent = c.line;
-  if(reduce){ [$("#pick"),$("#pickline"),$("#ps")].forEach(e=>e.style.opacity=1); }
-  else {
-    animate($("#pick"), { opacity:[0,1], scale:[1.2,1], duration:620, ease:"outExpo" });
-    animate($("#pickline"), { opacity:[0,1], translateY:[16,0], duration:640, delay:320, ease:"outExpo" });
-    animate($(".btn.light"), { opacity:[0,1], translateY:[16,0], duration:600, delay:620, ease:"outExpo" });
-    animate($("#ps"), { opacity:[0,1], duration:800, delay:1100, ease:"outQuad" });
+  const setText = () => { $("#pick").textContent = c.pick; $("#pickline").textContent = c.line; };
+  if(instant || reduce){
+    show("confirm"); setText();
+    [$("#pick"),$("#pickline"),$(".btn.light"),$("#ps")].forEach(e => e.style.opacity = 1);
+    wireLetKnow(c); return;
   }
-  $("#letknow").addEventListener("click", () => {
+  dogRain(13); await wait(750);
+  show("confirm"); setText();
+  $("#pick").style.opacity = 0; $("#pickline").style.opacity = 0; $(".btn.light").style.opacity = 0; $("#ps").style.opacity = 0;
+  animate($("#pick"), { opacity:[0,1], scale:[1.2,1], duration:620, ease:"outExpo" });
+  animate($("#pickline"), { opacity:[0,1], translateY:[16,0], duration:640, delay:320, ease:"outExpo" });
+  animate($(".btn.light"), { opacity:[0,1], translateY:[16,0], duration:600, delay:620, ease:"outExpo" });
+  animate($("#ps"), { opacity:[0,1], duration:800, delay:1100, ease:"outQuad" });
+  wireLetKnow(c);
+}
+function wireLetKnow(c){
+  $("#letknow").onclick = () => {     // onclick overwrites, so re-entry never double-binds
     const subject = encodeURIComponent(c.subj);
     const body = encodeURIComponent(c.body);
     const to = CONFIG.yourEmail || "";
     window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
-  }, {once:true});
-}
-
-/* generic transition between scenes */
-async function transition(from, to, opts = {}){
-  if(opts.rain){ dogRain(13); await wait(750); show(to); }
-  else { show(to); await wait(120); }
+  };
 }
 
 /* ============================ run ============================ */
